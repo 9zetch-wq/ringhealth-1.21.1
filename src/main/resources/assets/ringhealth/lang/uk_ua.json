@@ -1,0 +1,18 @@
+{
+  "key.ringhealth.toggle_mode": "Перемкнути вид хелзбару",
+  "key.categories.ringhealth": "Ring Health",
+  "ringhealth.message.ring": "Хелзбар: кільце навколо прицілу",
+  "ringhealth.message.world": "Хелзбар: 3D смужка у світі",
+  "ringhealth.configuration.title": "Кільце здоров'я",
+  "ringhealth.configuration.enabled": "Увімкнено",
+  "ringhealth.configuration.mode": "Вид відображення",
+  "ringhealth.configuration.range": "Макс. дистанція (блоки)",
+  "ringhealth.configuration.opacity": "Прозорість",
+  "ringhealth.configuration.showNumbers": "Показувати числа ХП",
+  "ringhealth.configuration.showName": "Показувати ім'я моба",
+  "ringhealth.configuration.showPlayers": "Показувати для гравців",
+  "ringhealth.configuration.radius": "Радіус кільця (px)",
+  "ringhealth.configuration.thickness": "Товщина кільця (px)",
+  "ringhealth.configuration.worldPosition": "Позиція 3D смужки",
+  "ringhealth.configuration.worldScale": "Розмір 3D смужки"
+}

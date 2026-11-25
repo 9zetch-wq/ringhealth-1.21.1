@@ -1,0 +1,27 @@
+modLoader="javafml"
+loaderVersion="[1,)"
+license="MIT"
+
+[[mods]]
+modId="ringhealth"
+version="1.0.0"
+displayName="Ring Health"
+authors="You"
+description='''
+Circular health bar around the crosshair for any mob you look at (vanilla and modded),
+with a smooth "damage trail" animation.
+'''
+
+[[dependencies.ringhealth]]
+modId="neoforge"
+type="required"
+versionRange="[21.1.0,)"
+ordering="NONE"
+side="CLIENT"
+
+[[dependencies.ringhealth]]
+modId="minecraft"
+type="required"
+versionRange="[1.21.1]"
+ordering="NONE"
+side="CLIENT"

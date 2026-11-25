@@ -1,0 +1,18 @@
+{
+  "key.ringhealth.toggle_mode": "Switch health bar style",
+  "key.categories.ringhealth": "Ring Health",
+  "ringhealth.message.ring": "Health bar: crosshair ring",
+  "ringhealth.message.world": "Health bar: 3D bar in the world",
+  "ringhealth.configuration.title": "Ring Health",
+  "ringhealth.configuration.enabled": "Enabled",
+  "ringhealth.configuration.mode": "Display style",
+  "ringhealth.configuration.range": "Max distance (blocks)",
+  "ringhealth.configuration.opacity": "Opacity",
+  "ringhealth.configuration.showNumbers": "Show HP numbers",
+  "ringhealth.configuration.showName": "Show mob name",
+  "ringhealth.configuration.showPlayers": "Show for players",
+  "ringhealth.configuration.radius": "Ring radius (px)",
+  "ringhealth.configuration.thickness": "Ring thickness (px)",
+  "ringhealth.configuration.worldPosition": "3D bar position",
+  "ringhealth.configuration.worldScale": "3D bar size"
+}
