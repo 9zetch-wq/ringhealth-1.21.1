@@ -64,9 +64,11 @@ public final class HealthRingLayer implements LayeredDraw.Layer {
         RenderSystem.disableCull();
         RenderSystem.setShader(GameRenderer::getPositionColorShader);
 
-        // dark outline + track
-        arc(m, cx, cy, r0 - 1f, r1 + 1f, 0f, 1f, 0f, 0f, 0f, a * 0.45f);
-        arc(m, cx, cy, r0, r1, 0f, 1f, 0.12f, 0.12f, 0.12f, a * 0.55f);
+        // Outline sandwich: light rim | black outline | bar. Readable on dark caves AND bright snow/sky.
+        float o = 1.5f;
+        arc(m, cx, cy, r0 - o - 1f, r1 + o + 1f, 0f, 1f, 1f, 1f, 1f, a * 0.55f);   // light rims
+        arc(m, cx, cy, r0 - o, r1 + o, 0f, 1f, 0f, 0f, 0f, a * 0.90f);             // black outline
+        arc(m, cx, cy, r0, r1, 0f, 1f, 0.28f, 0.28f, 0.28f, a * 0.95f);           // empty part
 
         // damage trail (the part that "falls off")
         if (ghost > front) {
@@ -78,10 +80,14 @@ public final class HealthRingLayer implements LayeredDraw.Layer {
         arc(m, cx, cy, r0, r1, 0f, front,
                 ((rgb >> 16) & 255) / 255f, ((rgb >> 8) & 255) / 255f, (rgb & 255) / 255f, a);
 
+        // soft highlight along the outer edge of the filled part
+        float hl = Math.max(1f, (r1 - r0) * 0.3f);
+        arc(m, cx, cy, r1 - hl, r1, 0f, front, 1f, 1f, 1f, a * 0.30f);
+
         RenderSystem.enableCull();
         RenderSystem.disableBlend();
 
-        drawText(g, mc, t, cx, cy + r1 + 5f, a);
+        drawText(g, mc, t, cx, cy + r1 + o + 5f, a);
     }
 
     private void drawText(GuiGraphics g, Minecraft mc, HealthTracker t, float x, float y, float a) {

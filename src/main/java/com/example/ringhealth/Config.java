@@ -10,6 +10,15 @@ public final class Config {
         WORLD_BAR
     }
 
+    public enum ColorScheme {
+        /** Bright red -> yellow -> green. */
+        VIVID,
+        /** Red -> yellow -> cyan: stands out on grass, good for colour-blind players. */
+        CONTRAST,
+        /** White bar that turns red when the mob is almost dead. */
+        WHITE
+    }
+
     public enum WorldPosition {
         BELOW,
         ABOVE
@@ -27,7 +36,10 @@ public final class Config {
                     .defineInRange("range", 40, 4, 128);
     public static final ModConfigSpec.DoubleValue OPACITY =
             B.comment("Overall opacity")
-                    .defineInRange("opacity", 0.9D, 0.1D, 1.0D);
+                    .defineInRange("opacity", 1.0D, 0.1D, 1.0D);
+    public static final ModConfigSpec.EnumValue<ColorScheme> COLOR_SCHEME =
+            B.comment("Bar colours: VIVID, CONTRAST or WHITE")
+                    .defineEnum("colorScheme", ColorScheme.VIVID);
     public static final ModConfigSpec.BooleanValue SHOW_NUMBERS =
             B.comment("Show 'current / max' text").define("showNumbers", true);
     public static final ModConfigSpec.BooleanValue SHOW_NAME =
@@ -41,7 +53,7 @@ public final class Config {
                     .defineInRange("radius", 16, 8, 64);
     public static final ModConfigSpec.IntValue THICKNESS =
             B.comment("[Ring mode] ring thickness in GUI pixels")
-                    .defineInRange("thickness", 3, 1, 10);
+                    .defineInRange("thickness", 4, 1, 10);
 
     // 3D bar
     public static final ModConfigSpec.EnumValue<WorldPosition> WORLD_POSITION =

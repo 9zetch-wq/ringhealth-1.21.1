@@ -14,5 +14,9 @@
   "ringhealth.configuration.radius": "Ring radius (px)",
   "ringhealth.configuration.thickness": "Ring thickness (px)",
   "ringhealth.configuration.worldPosition": "3D bar position",
-  "ringhealth.configuration.worldScale": "3D bar size"
+  "ringhealth.configuration.worldScale": "3D bar size",
+  "key.ringhealth.opacity_up": "Health bar: more opaque",
+  "key.ringhealth.opacity_down": "Health bar: more transparent",
+  "ringhealth.message.opacity": "Health bar opacity: %s%%",
+  "ringhealth.configuration.colorScheme": "Colour scheme"
 }

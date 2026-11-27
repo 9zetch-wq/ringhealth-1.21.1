@@ -60,13 +60,26 @@ public final class HealthTracker {
     public Component name() { return name; }
     public String numbers() { return fmt(hp) + " / " + fmt(max); }
 
-    /** Bar colour (green -> yellow -> red), blended towards white while flashing. Packed 0xRRGGBB. */
+    /** Bar colour according to the chosen scheme, blended towards white while flashing. Packed 0xRRGGBB. */
     public int barRgb() {
-        int rgb = Mth.hsvToRgb(Mth.clamp(front, 0f, 1f) * 0.33f, 0.85f, 1.0f);
-        float fl = flash * 0.75f;
-        int r = (int) Mth.lerp(fl, (rgb >> 16) & 255, 255);
-        int g = (int) Mth.lerp(fl, (rgb >> 8) & 255, 255);
-        int b = (int) Mth.lerp(fl, rgb & 255, 255);
+        float f = Mth.clamp(front, 0f, 1f);
+        int rgb;
+        switch (Config.COLOR_SCHEME.get()) {
+            case WHITE -> rgb = f > 0.3f ? 0xFFFFFF : lerpRgb(0xFF2A2A, 0xFFFFFF, f / 0.3f);
+            case CONTRAST -> rgb = f > 0.5f
+                    ? lerpRgb(0xFFE600, 0x00E5FF, (f - 0.5f) / 0.5f)
+                    : lerpRgb(0xFF1744, 0xFFE600, f / 0.5f);
+            default -> rgb = f > 0.5f
+                    ? lerpRgb(0xFFD500, 0x22FF55, (f - 0.5f) / 0.5f)
+                    : lerpRgb(0xFF2A2A, 0xFFD500, f / 0.5f);
+        }
+        return lerpRgb(rgb, 0xFFFFFF, flash * 0.75f);
+    }
+
+    private static int lerpRgb(int c0, int c1, float t) {
+        int r = (int) Mth.lerp(t, (c0 >> 16) & 255, (c1 >> 16) & 255);
+        int g = (int) Mth.lerp(t, (c0 >> 8) & 255, (c1 >> 8) & 255);
+        int b = (int) Mth.lerp(t, c0 & 255, c1 & 255);
         return (r << 16) | (g << 8) | b;
     }
 

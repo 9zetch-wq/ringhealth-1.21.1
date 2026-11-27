@@ -64,7 +64,7 @@ public final class WorldHealthBar {
 
         float width = Mth.clamp(t.bbWidth() * 1.1f, 0.7f, 2.5f);
         float h = BAR_HEIGHT * (1f + 0.5f * t.pulse());
-        float b = 0.015f; // border
+        float b = 0.02f; // border
         float a = t.alpha() * Config.OPACITY.get().floatValue();
 
         PoseStack ps = event.getPoseStack();
@@ -92,8 +92,10 @@ public final class WorldHealthBar {
         BufferBuilder buf = Tesselator.getInstance()
                 .begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
 
-        rect(buf, m, x0 - b, yb - b, x1 + b, yt + b, 0f, 0f, 0f, a * 0.65f);        // outline
-        rect(buf, m, x0, yb, x1, yt, 0.12f, 0.12f, 0.12f, a * 0.80f);               // track
+        float rim = 0.01f;
+        rect(buf, m, x0 - b - rim, yb - b - rim, x1 + b + rim, yt + b + rim, 1f, 1f, 1f, a * 0.55f); // light rim
+        rect(buf, m, x0 - b, yb - b, x1 + b, yt + b, 0f, 0f, 0f, a * 0.90f);        // black outline
+        rect(buf, m, x0, yb, x1, yt, 0.28f, 0.28f, 0.28f, a * 0.95f);               // empty part
         if (ghost > front) {
             rect(buf, m, xf, yb, xg, yt, 1.0f, 0.82f, 0.30f, a);                    // damage trail
         }

@@ -8,6 +8,7 @@ import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
@@ -32,6 +33,18 @@ public class RingHealth {
             GLFW.GLFW_KEY_V,
             "key.categories.ringhealth");
 
+    public static final KeyMapping OPACITY_UP_KEY = new KeyMapping(
+            "key.ringhealth.opacity_up",
+            InputConstants.Type.KEYSYM,
+            GLFW.GLFW_KEY_RIGHT_BRACKET,
+            "key.categories.ringhealth");
+
+    public static final KeyMapping OPACITY_DOWN_KEY = new KeyMapping(
+            "key.ringhealth.opacity_down",
+            InputConstants.Type.KEYSYM,
+            GLFW.GLFW_KEY_LEFT_BRACKET,
+            "key.categories.ringhealth");
+
     public RingHealth(IEventBus modBus, ModContainer container) {
         container.registerConfig(ModConfig.Type.CLIENT, Config.SPEC);
         container.registerExtensionPoint(IConfigScreenFactory.class, ConfigurationScreen::new);
@@ -52,10 +65,15 @@ public class RingHealth {
 
     private static void registerKeys(RegisterKeyMappingsEvent event) {
         event.register(TOGGLE_KEY);
+        event.register(OPACITY_UP_KEY);
+        event.register(OPACITY_DOWN_KEY);
     }
 
     /** Key V (changeable in Controls): switch between the crosshair ring and the 3D bar. */
     private static void onClientTick(ClientTickEvent.Post event) {
+        while (OPACITY_UP_KEY.consumeClick()) changeOpacity(+0.1);
+        while (OPACITY_DOWN_KEY.consumeClick()) changeOpacity(-0.1);
+
         while (TOGGLE_KEY.consumeClick()) {
             Config.DisplayMode next = Config.MODE.get() == Config.DisplayMode.CROSSHAIR_RING
                     ? Config.DisplayMode.WORLD_BAR
@@ -69,6 +87,19 @@ public class RingHealth {
                         ? "ringhealth.message.world" : "ringhealth.message.ring";
                 mc.player.displayClientMessage(Component.translatable(key), true);
             }
+        }
+    }
+
+    /** ']' / '[' in game: more / less opaque, saved to the config. */
+    private static void changeOpacity(double delta) {
+        double v = Math.round(Mth.clamp(Config.OPACITY.get() + delta, 0.1, 1.0) * 10.0) / 10.0;
+        Config.OPACITY.set(v);
+        Config.OPACITY.save();
+
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player != null) {
+            mc.player.displayClientMessage(
+                    Component.translatable("ringhealth.message.opacity", (int) Math.round(v * 100)), true);
         }
     }
 }
