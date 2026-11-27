@@ -52,7 +52,7 @@ public class RingHealth {
         modBus.addListener(RingHealth::registerLayers);
         modBus.addListener(RingHealth::registerKeys);
 
-        NeoForge.EVENT_BUS.addListener(WorldHealthBar::onRenderLevel);
+        NeoForge.EVENT_BUS.addListener(LevelRenderHandler::onRenderLevel);
         NeoForge.EVENT_BUS.addListener(RingHealth::onClientTick);
     }
 
@@ -69,22 +69,25 @@ public class RingHealth {
         event.register(OPACITY_DOWN_KEY);
     }
 
-    /** Key V (changeable in Controls): switch between the crosshair ring and the 3D bar. */
+    /** Key V (changeable in Controls): cycles crosshair ring -> 3D bar -> ground ring. */
     private static void onClientTick(ClientTickEvent.Post event) {
         while (OPACITY_UP_KEY.consumeClick()) changeOpacity(+0.1);
         while (OPACITY_DOWN_KEY.consumeClick()) changeOpacity(-0.1);
 
         while (TOGGLE_KEY.consumeClick()) {
-            Config.DisplayMode next = Config.MODE.get() == Config.DisplayMode.CROSSHAIR_RING
-                    ? Config.DisplayMode.WORLD_BAR
-                    : Config.DisplayMode.CROSSHAIR_RING;
+            Config.DisplayMode[] all = Config.DisplayMode.values();
+            Config.DisplayMode next = all[(Config.MODE.get().ordinal() + 1) % all.length];
             Config.MODE.set(next);
             Config.MODE.save();
+            HealthTracker.INSTANCE.reset();
 
             Minecraft mc = Minecraft.getInstance();
             if (mc.player != null) {
-                String key = next == Config.DisplayMode.WORLD_BAR
-                        ? "ringhealth.message.world" : "ringhealth.message.ring";
+                String key = switch (next) {
+                    case CROSSHAIR_RING -> "ringhealth.message.ring";
+                    case WORLD_BAR -> "ringhealth.message.world";
+                    case GROUND_RING -> "ringhealth.message.ground";
+                };
                 mc.player.displayClientMessage(Component.translatable(key), true);
             }
         }

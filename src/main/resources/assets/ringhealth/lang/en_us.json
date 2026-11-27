@@ -18,5 +18,7 @@
   "key.ringhealth.opacity_up": "Health bar: more opaque",
   "key.ringhealth.opacity_down": "Health bar: more transparent",
   "ringhealth.message.opacity": "Health bar opacity: %s%%",
-  "ringhealth.configuration.colorScheme": "Colour scheme"
+  "ringhealth.configuration.colorScheme": "Colour scheme",
+  "ringhealth.message.ground": "Health bar: ring on the ground",
+  "ringhealth.configuration.groundShadow": "Ground ring: shadow disc"
 }

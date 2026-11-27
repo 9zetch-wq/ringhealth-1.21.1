@@ -7,7 +7,9 @@ public final class Config {
         /** Ring around the crosshair in the middle of the screen. */
         CROSSHAIR_RING,
         /** 3D bar floating in the world next to the mob. */
-        WORLD_BAR
+        WORLD_BAR,
+        /** Flat ring lying on the ground under the mob, like a shadow. */
+        GROUND_RING
     }
 
     public enum ColorScheme {
@@ -29,7 +31,7 @@ public final class Config {
     public static final ModConfigSpec.BooleanValue ENABLED =
             B.comment("Master switch").define("enabled", true);
     public static final ModConfigSpec.EnumValue<DisplayMode> MODE =
-            B.comment("CROSSHAIR_RING = ring around the crosshair, WORLD_BAR = 3D bar next to the mob")
+            B.comment("CROSSHAIR_RING = ring around the crosshair, WORLD_BAR = 3D bar next to the mob, GROUND_RING = ring on the ground under the mob")
                     .defineEnum("mode", DisplayMode.CROSSHAIR_RING);
     public static final ModConfigSpec.IntValue RANGE =
             B.comment("How far (in blocks) a mob can be to show its health")
@@ -53,7 +55,7 @@ public final class Config {
                     .defineInRange("radius", 16, 8, 64);
     public static final ModConfigSpec.IntValue THICKNESS =
             B.comment("[Ring mode] ring thickness in GUI pixels")
-                    .defineInRange("thickness", 4, 1, 10);
+                    .defineInRange("thickness", 5, 1, 10);
 
     // 3D bar
     public static final ModConfigSpec.EnumValue<WorldPosition> WORLD_POSITION =
@@ -62,6 +64,10 @@ public final class Config {
     public static final ModConfigSpec.DoubleValue WORLD_SCALE =
             B.comment("[World mode] size multiplier of the 3D bar")
                     .defineInRange("worldScale", 1.0D, 0.5D, 3.0D);
+
+    public static final ModConfigSpec.BooleanValue GROUND_SHADOW =
+            B.comment("[Ground mode] draw a soft dark disc inside the ring, like a real shadow")
+                    .define("groundShadow", true);
 
     public static final ModConfigSpec SPEC = B.build();
 

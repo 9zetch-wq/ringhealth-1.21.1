@@ -18,5 +18,7 @@
   "key.ringhealth.opacity_up": "Хелзбар: менш прозорий",
   "key.ringhealth.opacity_down": "Хелзбар: більш прозорий",
   "ringhealth.message.opacity": "Непрозорість хелзбару: %s%%",
-  "ringhealth.configuration.colorScheme": "Кольорова схема"
+  "ringhealth.configuration.colorScheme": "Кольорова схема",
+  "ringhealth.message.ground": "Хелзбар: кільце на землі під мобом",
+  "ringhealth.configuration.groundShadow": "Кільце на землі: тіньовий диск"
 }

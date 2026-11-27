@@ -6,6 +6,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
@@ -30,25 +31,7 @@ public final class WorldHealthBar {
 
     private WorldHealthBar() {}
 
-    public static void onRenderLevel(RenderLevelStageEvent event) {
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES) return;
-
-        Minecraft mc = Minecraft.getInstance();
-        HealthTracker t = HealthTracker.INSTANCE;
-
-        if (!Config.ENABLED.get()
-                || Config.MODE.get() != Config.DisplayMode.WORLD_BAR
-                || mc.level == null || mc.player == null
-                || mc.options.hideGui
-                || mc.screen != null) {
-            t.reset();
-            return;
-        }
-
-        DeltaTracker delta = event.getPartialTick();
-        t.update(mc, delta.getGameTimeDeltaPartialTick(false), Math.min(delta.getRealtimeDeltaTicks(), 5f));
-        if (!t.visible()) return;
-
+    public static void draw(RenderLevelStageEvent event, Minecraft mc, HealthTracker t) {
         Camera camera = event.getCamera();
         Vec3 cam = camera.getPosition();
 
@@ -78,6 +61,8 @@ public final class WorldHealthBar {
         RenderSystem.defaultBlendFunc();
         RenderSystem.disableCull();
         RenderSystem.disableDepthTest(); // only the mob you are looking at is shown, so it is always readable
+        RenderSystem.depthMask(false);
+        RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
         RenderSystem.setShader(GameRenderer::getPositionColorShader);
 
         float x0 = -width / 2f;
@@ -107,10 +92,12 @@ public final class WorldHealthBar {
         rect(buf, m, x0, 0f, xf, yt, 1f, 1f, 1f, a * 0.22f);                        // bevel: light top
         rect(buf, m, x0, yb, xf, 0f, 0f, 0f, 0f, a * 0.18f);                        // bevel: dark bottom
 
-        BufferUploader.drawWithShader(buf.buildOrThrow());
+        MeshData mesh = buf.build();
+        if (mesh != null) BufferUploader.drawWithShader(mesh);
 
         drawText(mc, t, m, h, a);
 
+        RenderSystem.depthMask(true);
         RenderSystem.enableDepthTest();
         RenderSystem.enableCull();
         RenderSystem.disableBlend();
