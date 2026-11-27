@@ -76,7 +76,7 @@ public final class HealthTracker {
         return lerpRgb(rgb, 0xFFFFFF, flash * 0.75f);
     }
 
-    private static int lerpRgb(int c0, int c1, float t) {
+    static int lerpRgb(int c0, int c1, float t) {
         int r = (int) Mth.lerp(t, (c0 >> 16) & 255, (c1 >> 16) & 255);
         int g = (int) Mth.lerp(t, (c0 >> 8) & 255, (c1 >> 8) & 255);
         int b = (int) Mth.lerp(t, c0 & 255, c1 & 255);

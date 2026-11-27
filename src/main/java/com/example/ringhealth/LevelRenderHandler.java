@@ -12,7 +12,7 @@ public final class LevelRenderHandler {
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES) return;
 
         Config.DisplayMode mode = Config.MODE.get();
-        if (mode == Config.DisplayMode.CROSSHAIR_RING) return; // the GUI layer handles this one
+        if (mode != Config.DisplayMode.WORLD_BAR && mode != Config.DisplayMode.GROUND_RING) return; // GUI modes: see HealthRingLayer
 
         Minecraft mc = Minecraft.getInstance();
         HealthTracker t = HealthTracker.INSTANCE;

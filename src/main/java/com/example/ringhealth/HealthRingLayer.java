@@ -4,12 +4,7 @@ import org.joml.Matrix4f;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.BufferUploader;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.Tesselator;
-import com.mojang.blaze3d.vertex.VertexFormat;
 
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
@@ -18,7 +13,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.LayeredDraw;
 import net.minecraft.client.renderer.GameRenderer;
 
-/** Mode CROSSHAIR_RING: draws the health ring around the crosshair. */
+/** GUI modes: CROSSHAIR_RING and HUD_BAR. */
 public final class HealthRingLayer implements LayeredDraw.Layer {
     public static final HealthRingLayer INSTANCE = new HealthRingLayer();
 
@@ -28,36 +23,27 @@ public final class HealthRingLayer implements LayeredDraw.Layer {
 
     @Override
     public void render(GuiGraphics g, DeltaTracker delta) {
+        Config.DisplayMode mode = Config.MODE.get();
+        if (mode != Config.DisplayMode.CROSSHAIR_RING && mode != Config.DisplayMode.HUD_BAR) return; // not ours
+
         Minecraft mc = Minecraft.getInstance();
         HealthTracker t = HealthTracker.INSTANCE;
-
-        if (Config.MODE.get() != Config.DisplayMode.CROSSHAIR_RING) return; // another mode owns the tracker
+        boolean ring = mode == Config.DisplayMode.CROSSHAIR_RING;
 
         if (!Config.ENABLED.get()
                 || mc.level == null || mc.player == null
                 || mc.options.hideGui
                 || mc.screen != null
-                || !mc.options.getCameraType().isFirstPerson()) {
+                || (ring && !mc.options.getCameraType().isFirstPerson())) {
             t.reset();
             return;
         }
 
         float dt = Math.min(delta.getRealtimeDeltaTicks(), 5f);
         t.update(mc, delta.getGameTimeDeltaPartialTick(false), dt);
+        if (!t.visible()) return;
 
-        if (t.visible()) draw(g, mc, t);
-    }
-
-    private void draw(GuiGraphics g, Minecraft mc, HealthTracker t) {
-        float cx = g.guiWidth() / 2f;
-        float cy = g.guiHeight() / 2f;
-
-        float r0 = Config.RADIUS.get();
-        float r1 = r0 + Config.THICKNESS.get() + t.pulse() * 1.5f;
         float a = t.alpha() * Config.OPACITY.get().floatValue();
-        float front = t.front();
-        float ghost = t.ghost();
-        float o = 1.5f; // outline width
 
         g.flush(); // everything queued before us must already be on screen
         Matrix4f m = g.pose().last().pose();
@@ -66,89 +52,145 @@ public final class HealthRingLayer implements LayeredDraw.Layer {
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
         RenderSystem.disableCull();
-        RenderSystem.disableDepthTest(); // draw order decides, no z-fighting between our own arcs
+        RenderSystem.disableDepthTest();
         RenderSystem.depthMask(false);
         RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
         RenderSystem.setShader(GameRenderer::getPositionColorShader);
 
-        BufferBuilder buf = Tesselator.getInstance()
-                .begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+        float cx = g.guiWidth() / 2f;
+        float cy = g.guiHeight() / 2f;
+        float textX = cx, textY;
+        boolean pixel = Config.STYLE.get() == Config.Style.PIXEL;
+        boolean numbersInside = false;
+        float barTop = 0f, barH = 0f;
 
-        // Outline sandwich: light rim | black outline | bar. Readable on dark caves AND bright snow/sky.
-        arc(buf, m, cx, cy, r0 - o - 1f, r1 + o + 1f, 0f, 1f, 1f, 1f, 1f, a * 0.60f);  // light rims
-        arc(buf, m, cx, cy, r0 - o, r1 + o, 0f, 1f, 0f, 0f, 0f, a * 0.92f);            // black outline
-        arc(buf, m, cx, cy, r0, r1, 0f, 1f, 0.28f, 0.28f, 0.28f, a);                  // empty part
-
-        // damage trail (the part that "falls off")
-        if (ghost > front) {
-            arc(buf, m, cx, cy, r0, r1, front, ghost, 1.0f, 0.82f, 0.30f, a);
+        if (ring) {
+            float r0 = Config.RADIUS.get();
+            float thick = Config.THICKNESS.get() + t.pulse() * 1.5f;
+            HealthPainter.render(new RingShape(m, cx, cy, r0, thick), t, a);
+            textY = cy + r0 + thick * (1f + HealthPainter.outerExtent() + 0.1f) + 4f;
+        } else {
+            float w = Config.HUD_WIDTH.get();
+            barH = (pixel ? 12f : Config.THICKNESS.get() + 2f) * (1f + 0.25f * t.pulse());
+            barTop = cy + Config.HUD_OFFSET_Y.get();
+            HealthPainter.render(new HudBarShape(m, cx - w / 2f, barTop, w, barH), t, a);
+            numbersInside = pixel;
+            textY = barTop + barH * (1f + HealthPainter.outerExtent() + 0.1f) + 3f;
         }
-
-        // current health
-        int rgb = t.barRgb();
-        arc(buf, m, cx, cy, r0, r1, 0f, front,
-                ((rgb >> 16) & 255) / 255f, ((rgb >> 8) & 255) / 255f, (rgb & 255) / 255f, a);
-
-        // soft highlight along the outer edge of the filled part
-        float hl = Math.max(1f, (r1 - r0) * 0.3f);
-        arc(buf, m, cx, cy, r1 - hl, r1, 0f, front, 1f, 1f, 1f, a * 0.30f);
-
-        MeshData mesh = buf.build(); // null if nothing was added
-        if (mesh != null) BufferUploader.drawWithShader(mesh);
 
         RenderSystem.depthMask(true);
         RenderSystem.enableDepthTest();
         RenderSystem.enableCull();
         RenderSystem.disableBlend();
 
-        drawText(g, mc, t, cx, cy + r1 + o + 5f, a);
-    }
-
-    private void drawText(GuiGraphics g, Minecraft mc, HealthTracker t, float x, float y, float a) {
-        boolean showName = Config.SHOW_NAME.get();
-        boolean showNum = Config.SHOW_NUMBERS.get();
-        if (!showName && !showNum) return;
-
         int ai = (int) (a * 255f);
         if (ai < 8) return; // vanilla font treats very low alpha as fully opaque
-        int color = (ai << 24) | 0xFFFFFF;
-
+        int color = (ai << 24) | HealthPainter.textRgb(t);
+        boolean showName = Config.SHOW_NAME.get();
+        boolean showNum = Config.SHOW_NUMBERS.get();
         Font font = mc.font;
-        PoseStack ps = g.pose();
-        ps.pushPose();
-        ps.translate(x, y, 0f);
-        ps.scale(0.75f, 0.75f, 1f);
-        int line = 0;
-        if (showName) {
-            g.drawCenteredString(font, t.name(), 0, line, color);
-            line += 10;
+
+        if (numbersInside) {
+            if (showNum) {
+                float k = Math.max(0.5f, (barH - 3f) / 9f);
+                PoseStack ps = g.pose();
+                ps.pushPose();
+                ps.translate(cx, barTop + barH / 2f - 4.5f * k, 0f);
+                ps.scale(k, k, 1f);
+                g.drawCenteredString(font, t.numbers(), 0, 0, color);
+                ps.popPose();
+            }
+            if (showName) {
+                PoseStack ps = g.pose();
+                ps.pushPose();
+                ps.translate(cx, barTop - 10f, 0f);
+                ps.scale(0.75f, 0.75f, 1f);
+                g.drawCenteredString(font, t.name(), 0, 0, color);
+                ps.popPose();
+            }
+        } else if (showName || showNum) {
+            PoseStack ps = g.pose();
+            ps.pushPose();
+            ps.translate(textX, textY, 0f);
+            ps.scale(0.75f, 0.75f, 1f);
+            int line = 0;
+            if (showName) {
+                g.drawCenteredString(font, t.name(), 0, line, color);
+                line += 10;
+            }
+            if (showNum) {
+                g.drawCenteredString(font, t.numbers(), 0, line, color);
+            }
+            ps.popPose();
         }
-        if (showNum) {
-            g.drawCenteredString(font, t.numbers(), 0, line, color);
-        }
-        ps.popPose();
     }
 
-    /** Filled ring segment (as quads). from/to are fractions of a full circle, from 12 o'clock, clockwise. */
-    private static void arc(BufferBuilder buf, Matrix4f m, float cx, float cy, float r0, float r1,
-                            float from, float to, float r, float g, float b, float a) {
-        if (to - from <= 0.0005f || a <= 0.003f) return;
-        int steps = Math.max(2, (int) Math.ceil(ARC_STEPS_FULL * (to - from)));
+    // ------------------------------------------------------------------ shapes
 
-        float prevCos = 0f, prevSin = 0f;
-        for (int i = 0; i <= steps; i++) {
-            float t = from + (to - from) * i / steps;
-            double ang = -Math.PI / 2.0 + t * Math.PI * 2.0;
-            float cos = (float) Math.cos(ang);
-            float sin = (float) Math.sin(ang);
-            if (i > 0) {
-                buf.addVertex(m, cx + prevCos * r1, cy + prevSin * r1, 0f).setColor(r, g, b, a);
-                buf.addVertex(m, cx + prevCos * r0, cy + prevSin * r0, 0f).setColor(r, g, b, a);
-                buf.addVertex(m, cx + cos * r0, cy + sin * r0, 0f).setColor(r, g, b, a);
-                buf.addVertex(m, cx + cos * r1, cy + sin * r1, 0f).setColor(r, g, b, a);
+    /** Ring around a point. c: 0 = inner edge, 1 = outer edge. t = 0 is 12 o'clock, clockwise. */
+    private static final class RingShape implements HealthPainter.Shape {
+        private final Matrix4f m;
+        private final float cx, cy, r0, thick;
+
+        RingShape(Matrix4f m, float cx, float cy, float r0, float thick) {
+            this.m = m; this.cx = cx; this.cy = cy; this.r0 = r0; this.thick = thick;
+        }
+
+        @Override
+        public void quad(BufferBuilder b, float t0, float t1, float c0, float c1, int col0, int col1) {
+            float rIn = Math.max(0f, r0 + c0 * thick);
+            float rOut = Math.max(0f, r0 + c1 * thick);
+            int steps = Math.max(1, (int) Math.ceil(ARC_STEPS_FULL * (t1 - t0)));
+            float pc = 0f, ps = 0f;
+            for (int i = 0; i <= steps; i++) {
+                double ang = -Math.PI / 2.0 + (t0 + (t1 - t0) * i / steps) * Math.PI * 2.0;
+                float c = (float) Math.cos(ang), s = (float) Math.sin(ang);
+                if (i > 0) {
+                    HealthPainter.vertex(b, m, cx + pc * rOut, cy + ps * rOut, 0f, col1);
+                    HealthPainter.vertex(b, m, cx + pc * rIn, cy + ps * rIn, 0f, col0);
+                    HealthPainter.vertex(b, m, cx + c * rIn, cy + s * rIn, 0f, col0);
+                    HealthPainter.vertex(b, m, cx + c * rOut, cy + s * rOut, 0f, col1);
+                }
+                pc = c;
+                ps = s;
             }
-            prevCos = cos;
-            prevSin = sin;
+        }
+    }
+
+    /** Horizontal bar on the screen. c: 0 = bottom edge, 1 = top edge. */
+    private static final class HudBarShape implements HealthPainter.Shape {
+        private final Matrix4f m;
+        private final float x0, yTop, w, h;
+
+        HudBarShape(Matrix4f m, float x0, float yTop, float w, float h) {
+            this.m = m; this.x0 = x0; this.yTop = yTop; this.w = w; this.h = h;
+        }
+
+        private float y(float c) { return yTop + h - c * h; }
+
+        @Override
+        public void quad(BufferBuilder b, float t0, float t1, float c0, float c1, int col0, int col1) {
+            float xa = x0 + t0 * w, xb = x0 + t1 * w;
+            HealthPainter.vertex(b, m, xa, y(c1), 0f, col1);
+            HealthPainter.vertex(b, m, xb, y(c1), 0f, col1);
+            HealthPainter.vertex(b, m, xb, y(c0), 0f, col0);
+            HealthPainter.vertex(b, m, xa, y(c0), 0f, col0);
+        }
+
+        @Override
+        public void cap(BufferBuilder b, float extent, int argb) {
+            float top = y(1f + extent), bot = y(-extent), mid = y(0.5f);
+            float tip = (1f + 2f * extent) * h * 0.5f;
+            // left
+            HealthPainter.vertex(b, m, x0, top, 0f, argb);
+            HealthPainter.vertex(b, m, x0, bot, 0f, argb);
+            HealthPainter.vertex(b, m, x0 - tip, mid, 0f, argb);
+            HealthPainter.vertex(b, m, x0 - tip, mid, 0f, argb);
+            // right
+            HealthPainter.vertex(b, m, x0 + w, bot, 0f, argb);
+            HealthPainter.vertex(b, m, x0 + w, top, 0f, argb);
+            HealthPainter.vertex(b, m, x0 + w + tip, mid, 0f, argb);
+            HealthPainter.vertex(b, m, x0 + w + tip, mid, 0f, argb);
         }
     }
 }

@@ -4,15 +4,9 @@ import org.joml.Matrix4f;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.BufferUploader;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.Tesselator;
-import com.mojang.blaze3d.vertex.VertexFormat;
 
 import net.minecraft.client.Camera;
-import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.renderer.GameRenderer;
@@ -22,9 +16,8 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 
 /**
- * Mode WORLD_BAR: a 3D bar that floats in the world under (or above) the mob you are looking at.
- * It is a billboard (always faces the camera), gets smaller with distance like a real object
- * (with a soft lower limit so it stays readable), and has a little bevel for a 3D look.
+ * Mode WORLD_BAR: a bar that floats in the world under (or above) the mob you are looking at.
+ * It is a billboard (always faces the camera) and gets smaller with distance (with a soft lower limit).
  */
 public final class WorldHealthBar {
     private static final float BAR_HEIGHT = 0.10f; // in blocks
@@ -34,6 +27,7 @@ public final class WorldHealthBar {
     public static void draw(RenderLevelStageEvent event, Minecraft mc, HealthTracker t) {
         Camera camera = event.getCamera();
         Vec3 cam = camera.getPosition();
+        boolean pixel = Config.STYLE.get() == Config.Style.PIXEL;
 
         float dist = (float) Math.sqrt(
                 (t.x() - cam.x) * (t.x() - cam.x)
@@ -46,8 +40,7 @@ public final class WorldHealthBar {
                 : t.y() - 0.18 * s;
 
         float width = Mth.clamp(t.bbWidth() * 1.1f, 0.7f, 2.5f);
-        float h = BAR_HEIGHT * (1f + 0.5f * t.pulse());
-        float b = 0.02f; // border
+        float h = BAR_HEIGHT * (pixel ? 1.9f : 1f) * (1f + 0.5f * t.pulse());
         float a = t.alpha() * Config.OPACITY.get().floatValue();
 
         PoseStack ps = event.getPoseStack();
@@ -65,37 +58,9 @@ public final class WorldHealthBar {
         RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
         RenderSystem.setShader(GameRenderer::getPositionColorShader);
 
-        float x0 = -width / 2f;
-        float x1 = width / 2f;
-        float yb = -h / 2f;
-        float yt = h / 2f;
-        float front = t.front();
-        float ghost = t.ghost();
-        float xf = x0 + width * front;
-        float xg = x0 + width * ghost;
+        HealthPainter.render(new BarShape(m, width, h), t, a);
 
-        BufferBuilder buf = Tesselator.getInstance()
-                .begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
-
-        float rim = 0.01f;
-        rect(buf, m, x0 - b - rim, yb - b - rim, x1 + b + rim, yt + b + rim, 1f, 1f, 1f, a * 0.55f); // light rim
-        rect(buf, m, x0 - b, yb - b, x1 + b, yt + b, 0f, 0f, 0f, a * 0.90f);        // black outline
-        rect(buf, m, x0, yb, x1, yt, 0.28f, 0.28f, 0.28f, a * 0.95f);               // empty part
-        if (ghost > front) {
-            rect(buf, m, xf, yb, xg, yt, 1.0f, 0.82f, 0.30f, a);                    // damage trail
-        }
-        int rgb = t.barRgb();
-        float r = ((rgb >> 16) & 255) / 255f;
-        float g = ((rgb >> 8) & 255) / 255f;
-        float bl = (rgb & 255) / 255f;
-        rect(buf, m, x0, yb, xf, yt, r, g, bl, a);                                  // health
-        rect(buf, m, x0, 0f, xf, yt, 1f, 1f, 1f, a * 0.22f);                        // bevel: light top
-        rect(buf, m, x0, yb, xf, 0f, 0f, 0f, 0f, a * 0.18f);                        // bevel: dark bottom
-
-        MeshData mesh = buf.build();
-        if (mesh != null) BufferUploader.drawWithShader(mesh);
-
-        drawText(mc, t, m, h, a);
+        drawText(mc, t, m, width, h, a, pixel);
 
         RenderSystem.depthMask(true);
         RenderSystem.enableDepthTest();
@@ -104,46 +69,86 @@ public final class WorldHealthBar {
         ps.popPose();
     }
 
-    private static void drawText(Minecraft mc, HealthTracker t, Matrix4f m, float h, float a) {
+    private static void drawText(Minecraft mc, HealthTracker t, Matrix4f m, float w, float h, float a, boolean pixel) {
         boolean showName = Config.SHOW_NAME.get();
         boolean showNum = Config.SHOW_NUMBERS.get();
         if (!showName && !showNum) return;
 
         int ai = (int) (a * 255f);
         if (ai < 8) return;
-        int color = (ai << 24) | 0xFFFFFF;
+        int color = (ai << 24) | HealthPainter.textRgb(t);
 
         Font font = mc.font;
         MultiBufferSource.BufferSource bs = mc.renderBuffers().bufferSource();
-        Matrix4f tm = new Matrix4f(m)
-                .translate(0f, -(h / 2f) - 0.05f, 0f)
-                .scale(-0.012f, -0.012f, 0.012f);
 
-        float y = 0f;
-        if (showName) {
-            font.drawInBatch(t.name(), -font.width(t.name()) / 2f, y, color, false, tm, bs,
-                    Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
-            y += 10f;
-        }
-        if (showNum) {
-            String s = t.numbers();
-            font.drawInBatch(s, -font.width(s) / 2f, y, color, false, tm, bs,
-                    Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
+        if (pixel) {
+            if (showNum) { // numbers inside the bar
+                float k = h * 0.70f / 9f;
+                Matrix4f tm = new Matrix4f(m).scale(-k, -k, k);
+                String str = t.numbers();
+                font.drawInBatch(str, -font.width(str) / 2f, -4.5f, color, true, tm, bs,
+                        Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
+            }
+            if (showName) { // name above the bar
+                Matrix4f tm = new Matrix4f(m).translate(0f, h * 0.5f * (1f + 2f * 0.58f) + 0.03f, 0f)
+                        .scale(-0.012f, -0.012f, 0.012f);
+                font.drawInBatch(t.name(), -font.width(t.name()) / 2f, -9f, color, false, tm, bs,
+                        Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
+            }
+        } else {
+            Matrix4f tm = new Matrix4f(m)
+                    .translate(0f, -(h / 2f) - 0.07f, 0f)
+                    .scale(-0.012f, -0.012f, 0.012f);
+            float y = 0f;
+            if (showName) {
+                font.drawInBatch(t.name(), -font.width(t.name()) / 2f, y, color, false, tm, bs,
+                        Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
+                y += 10f;
+            }
+            if (showNum) {
+                String str = t.numbers();
+                font.drawInBatch(str, -font.width(str) / 2f, y, color, false, tm, bs,
+                        Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
+            }
         }
         bs.endBatch();
     }
 
     /**
-     * Rectangle in billboard space. x is given as "screen right" and is mirrored here, because after
-     * applying the camera rotation local +X points to the viewer's left (same as vanilla name tags).
+     * Bar in billboard space. After applying the camera rotation local +X points to the viewer's LEFT
+     * (same as vanilla name tags), so x is mirrored here. c: 0 = bottom edge, 1 = top edge.
      */
-    private static void rect(BufferBuilder b, Matrix4f m,
-                             float x0, float y0, float x1, float y1,
-                             float r, float g, float bl, float a) {
-        if (x1 - x0 <= 0.0001f || a <= 0.003f) return;
-        b.addVertex(m, -x0, y0, 0f).setColor(r, g, bl, a);
-        b.addVertex(m, -x1, y0, 0f).setColor(r, g, bl, a);
-        b.addVertex(m, -x1, y1, 0f).setColor(r, g, bl, a);
-        b.addVertex(m, -x0, y1, 0f).setColor(r, g, bl, a);
+    private static final class BarShape implements HealthPainter.Shape {
+        private final Matrix4f m;
+        private final float w, h;
+
+        BarShape(Matrix4f m, float w, float h) { this.m = m; this.w = w; this.h = h; }
+
+        private float x(float t) { return -(-w / 2f + t * w); }  // mirrored
+        private float y(float c) { return -h / 2f + c * h; }
+
+        @Override
+        public void quad(BufferBuilder b, float t0, float t1, float c0, float c1, int col0, int col1) {
+            HealthPainter.vertex(b, m, x(t0), y(c1), 0f, col1);
+            HealthPainter.vertex(b, m, x(t1), y(c1), 0f, col1);
+            HealthPainter.vertex(b, m, x(t1), y(c0), 0f, col0);
+            HealthPainter.vertex(b, m, x(t0), y(c0), 0f, col0);
+        }
+
+        @Override
+        public void cap(BufferBuilder b, float extent, int argb) {
+            float top = y(1f + extent), bot = y(-extent), mid = y(0.5f);
+            float tip = (1f + 2f * extent) * h * 0.5f;
+            // screen-left cap (t = 0 side)
+            HealthPainter.vertex(b, m, x(0f), top, 0f, argb);
+            HealthPainter.vertex(b, m, x(0f), bot, 0f, argb);
+            HealthPainter.vertex(b, m, -(-w / 2f - tip), mid, 0f, argb);
+            HealthPainter.vertex(b, m, -(-w / 2f - tip), mid, 0f, argb);
+            // screen-right cap (t = 1 side)
+            HealthPainter.vertex(b, m, x(1f), bot, 0f, argb);
+            HealthPainter.vertex(b, m, x(1f), top, 0f, argb);
+            HealthPainter.vertex(b, m, -(w / 2f + tip), mid, 0f, argb);
+            HealthPainter.vertex(b, m, -(w / 2f + tip), mid, 0f, argb);
+        }
     }
 }
